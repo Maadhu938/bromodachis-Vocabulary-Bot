@@ -1,80 +1,130 @@
 # Bromodachis Daily Vocabulary Bot 🇯🇵
 
-A daily JLPT N5 vocabulary bot built with Python, FastAPI, and APScheduler. It automatically picks 5 new Japanese vocabulary words from your CSV database every day and prepares a formatted message ready for sending to your group chat.
+A daily **JLPT N5 Japanese vocabulary** bot. Every day at **08:00 (Asia/Kolkata)** it picks a configurable number of new words from a CSV dataset, formats them into a post, and sends it to a **WhatsApp group** through [Evolution API](https://doc.evolution-api.com) (an unofficial WhatsApp bridge).
+
+> **Note on the sender:** Evolution API sends messages from the WhatsApp account you link to it. In the group, posts therefore appear as coming from *your* number/name — there is no separate "bot" identity with this approach.
+
+## How it works
+
+```
+┌─────────────┐      ┌──────────────────┐      ┌────────────────────┐
+│  vocab-bot  │ ───▶ │  Evolution API   │ ───▶ │  WhatsApp Group    │
+│  (FastAPI)  │      │  (WhatsApp bridge)│      │  (Bromodachi's)   │
+└─────────────┘      └──────────────────┘      └────────────────────┘
+      │                        │
+      │ SQLite (vocab.db)     │ PostgreSQL
+      │ word tracking          │ instance / session state
+      ▼                        ▼
+ data/n5.csv ──▶ vocab.db   evolution-postgres
+```
+
+1. On startup the bot loads `data/n5.csv` into a local **SQLite** DB (`vocab.db`) — created at image build time by `app/utils/load_csv.py`.
+2. **APScheduler** fires `daily_vocabulary_job` every day at 08:00 in the configured timezone (`TIMEZONE`, default `Asia/Kolkata`).
+3. The job asks `VocabularyService` for the next N unseen words (`N = WORDS_PER_DAY`), marks them sent (so they are never repeated until the list is exhausted), and formats them via `MessageFormatter`.
+4. `WhatsAppMessagingService` POSTs the text to Evolution API (`/message/sendText/{instance}`), which delivers it to `WHATSAPP_GROUP_ID`.
 
 ## Features
-- **Daily Vocabulary**: Sends 5 JLPT N5 vocabulary words every day at 8:00 AM.
-- **Smart Progress Tracking**: Uses SQLite to keep track of which words have already been sent, ensuring no duplicates until the entire list is exhausted.
-- **Ready for WhatsApp/Telegram**: Designed with a replaceable `MockMessagingService` layer. You can easily plug in a WhatsApp Cloud API, Evolution API, or Telegram Bot implementation.
-- **FastAPI Endpoints**: Includes REST APIs to manually trigger messages, check progress, and reset the list.
+- **Configurable words/day** — set `WORDS_PER_DAY` (default `5`, currently `3`).
+- **Timezone-aware scheduling** — runs at 08:00 in `TIMEZONE` (IST by default).
+- **No-duplicate progress tracking** — `sent_words` table records what was sent; `/reset` starts over.
+- **Manual + scheduled triggers** — REST endpoints for on-demand send, progress, and reset.
+- **Replaceable messaging layer** — `app/messaging/whatsapp.py` is the live sender; `app/messaging/mock.py` is a console-only logger kept for local testing.
 
 ## Folder Structure
 ```
 bromodachis-vocab-bot/
-│
 ├── app/
 │   ├── api/
-│   │   └── routes.py         # FastAPI endpoints
+│   │   └── routes.py          # FastAPI endpoints (/today, /send, /progress, /reset)
 │   ├── services/
-│   │   ├── vocabulary.py     # Core logic for picking words and tracking sent history
-│   │   └── formatter.py      # Formats the 5 words into the beautiful chat message
+│   │   ├── vocabulary.py      # Word selection + sent-history tracking
+│   │   └── formatter.py       # Formats words into the chat message
 │   ├── scheduler/
-│   │   └── tasks.py          # APScheduler cron jobs
+│   │   └── tasks.py           # APScheduler cron job (08:00, configurable TZ)
 │   ├── messaging/
-│   │   └── mock.py           # Mock messaging layer (Replace with WhatsApp/Telegram)
+│   │   ├── whatsapp.py        # Live sender via Evolution API (v2 payload)
+│   │   └── mock.py            # Console logger for local testing
 │   ├── database/
-│   │   └── connection.py     # SQLite DB setup
+│   │   └── connection.py      # SQLAlchemy engine (SQLite vocab.db)
 │   ├── models/
-│   │   ├── vocabulary.py     # Vocabulary table
-│   │   └── sent_words.py     # Sent history table
+│   │   ├── vocabulary.py      # Vocabulary table
+│   │   └── sent_words.py      # Sent-history table
 │   ├── utils/
-│   │   └── load_csv.py       # Script to load CSV into SQLite
-│   └── main.py               # FastAPI application entrypoint
-│
+│   │   └── load_csv.py        # Loads data/n5.csv → vocab.db (runs at build)
+│   └── main.py                # FastAPI app + lifespan (DB init, scheduler)
 ├── data/
-│   └── n5.csv                # The vocabulary dataset
-│
+│   └── n5.csv                # Vocabulary dataset (expression,reading,meaning,tags)
+├── docker-compose.yml          # evolution-api + postgres + vocab-bot
+├── Dockerfile                  # Builds vocab-bot (installs tzdata, loads CSV)
+├── .env.example               # Config template (copy to .env)
 ├── requirements.txt
 └── README.md
 ```
 
-## Installation
+## Prerequisites
+- **Docker** + **Docker Compose** v2.
+- A WhatsApp account you can link via QR code.
 
-1. Create a virtual environment and activate it:
+## Setup
+
+1. **Configure environment** — copy the template and fill in real values:
    ```cmd
-   python -m venv .venv
-   .\.venv\Scripts\activate
+   copy .env.example .env
    ```
-2. Install the requirements:
+   | Variable | Description |
+   | --- | --- |
+   | `EVOLUTION_API_KEY` | Global API key for Evolution API (used in the `apikey` header). |
+   | `EVOLUTION_INSTANCE_NAME` | Evolution instance name (e.g. `bromodachis`). |
+   | `WHATSAPP_GROUP_ID` | Target group id, e.g. `120363xxxxxxxxxx@g.us`. |
+   | `WORDS_PER_DAY` | Words sent per batch (default `5`). |
+   | `TIMEZONE` | IANA timezone for the 08:00 schedule (e.g. `Asia/Kolkata`). |
+
+2. **Start the stack** (Evolution API + PostgreSQL + bot):
    ```cmd
-   pip install -r requirements.txt
+   docker-compose up -d
    ```
+   This pulls `evoapicloud/evolution-api:latest`, a `postgres:16` DB (required by current Evolution API), and builds/runs the bot.
 
-## Setup & Configuration
-1. Place your CSV file in `data/n5.csv`. The CSV should have headers: `expression,reading,meaning,tags`.
-2. Load the CSV into the database:
+3. **Link your WhatsApp number.** The current Evolution API image does **not** ship the `/manager` web UI, so create the instance and get the QR via the REST API (a small helper is provided):
    ```cmd
-   python app/utils/load_csv.py
+   python get_qr.py
    ```
-   *This creates `vocab.db` in the root folder and loads the words.*
+   This writes `qr.png` — open it with your phone (**WhatsApp → Linked Devices → Link a Device**) and scan promptly (QRs expire in ~60s; re-run if needed).
 
-## Running the Bot
+4. **Find the group id.** Once connected, fetch your groups and copy the `id` of the target group into `.env` as `WHATSAPP_GROUP_ID`:
+   ```powershell
+   # PowerShell
+   $h = @{"apikey"="<EVOLUTION_API_KEY>"}
+   (Invoke-WebRequest "http://localhost:8080/group/fetchAllGroups/bromodachis?getParticipants=false" -Headers $h).Content
+   ```
+   Then `docker-compose up -d --force-recreate vocab-bot` to pick up the new value.
 
-Run the FastAPI server using Uvicorn. The APScheduler background job starts automatically and is scheduled for 8:00 AM daily.
-
+## Running
+The bot runs as a container and is already scheduled. Useful commands:
 ```cmd
+docker-compose ps                 # see all services
+docker-compose logs -f vocab-bot # bot logs (sends, scheduler)
+docker-compose logs -f evolution-api
+docker-compose down              # stop everything
+```
+
+## API Endpoints (bot, port 8000)
+- **GET `/today`** — preview the next `WORDS_PER_DAY` words **without** marking them sent.
+- **POST `/send`** — pick the next words, mark them sent, format, and push to WhatsApp immediately.
+- **GET `/progress`** — `{ total_words, sent_words, remaining_words }`.
+- **POST `/reset`** — clear sent history (back to day 1).
+
+## Local development (without WhatsApp)
+For working on formatting/logic without Evolution API, the bot can run locally against the `MockMessagingService` (console logger). Set the messaging import to `mock` (or use the `WORDS_PER_DAY`/`TIMEZONE` env vars) and run:
+```cmd
+python -m venv .venv && .\.venv\Scripts\activate
+pip install -r requirements.txt
+python -m app.utils.load_csv
 set PYTHONPATH=.
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## API Endpoints
-
-- **GET `/today`** - Get the 5 words for today without marking them as sent.
-- **POST `/send`** - Force trigger the bot to pick 5 words, mark them as sent, format the message, and push it to the messaging service immediately.
-- **GET `/progress`** - Get statistics on how many words have been sent and how many are remaining.
-- **POST `/reset`** - Reset the bot's progress back to day 1.
-
-## Replacing the Messaging Layer
-Currently, the bot uses `MockMessagingService` located in `app/messaging/mock.py`, which simply prints the message to the console log. 
-
-To connect this to WhatsApp or Telegram, edit `app/messaging/mock.py` (or create a new file) and implement your API calls inside the `send_message(self, message: str)` method.
+## Known limitations
+- Messages originate from your linked personal WhatsApp number (see note above).
+- `vocab.db` is baked into the image at build time from `data/n5.csv`; `/reset` only clears sent-history, it does not reload the CSV.
+- Evolution API is an **unofficial** WhatsApp integration — use responsibly and within WhatsApp's terms.

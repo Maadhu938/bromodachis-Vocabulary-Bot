@@ -5,15 +5,15 @@ from typing import Dict, Any
 from app.database.connection import get_db
 from app.services.vocabulary import VocabularyService
 from app.services.formatter import MessageFormatter
-from app.messaging.mock import MockMessagingService
+from app.messaging.whatsapp import WhatsAppMessagingService
 
 router = APIRouter()
-messaging_service = MockMessagingService()
+messaging_service = WhatsAppMessagingService()
 
 @router.get("/today")
 def get_today_words(db: Session = Depends(get_db)):
     vocab_service = VocabularyService(db)
-    words = vocab_service.get_next_words(limit=5)
+    words = vocab_service.get_next_words()
     return {"words": words}
 
 @router.post("/send")
@@ -21,7 +21,7 @@ def send_daily_vocabulary(db: Session = Depends(get_db)):
     vocab_service = VocabularyService(db)
     
     # 1. Get words
-    words = vocab_service.get_next_words(limit=5)
+    words = vocab_service.get_next_words()
     if not words:
         return {"status": "error", "message": "No more words to send!"}
         

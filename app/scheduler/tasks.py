@@ -1,10 +1,11 @@
 import logging
+import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from app.database.connection import SessionLocal
 from app.services.vocabulary import VocabularyService
 from app.services.formatter import MessageFormatter
-from app.messaging.mock import MockMessagingService
+from app.messaging.whatsapp import WhatsAppMessagingService
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +14,9 @@ def daily_vocabulary_job():
     db = SessionLocal()
     try:
         vocab_service = VocabularyService(db)
-        messaging_service = MockMessagingService()
+        messaging_service = WhatsAppMessagingService()
         
-        words = vocab_service.get_next_words(limit=5)
+        words = vocab_service.get_next_words()
         if not words:
             logger.info("No more words available in database.")
             return
@@ -33,10 +34,10 @@ def daily_vocabulary_job():
         db.close()
 
 def setup_scheduler():
-    scheduler = BackgroundScheduler()
-    # Schedule to run every day at 08:00 AM
+    scheduler = BackgroundScheduler(timezone=os.getenv("TIMEZONE", "UTC"))
+    # Schedule to run every day at 08:00 in the configured timezone
     trigger = CronTrigger(hour=8, minute=0)
     scheduler.add_job(daily_vocabulary_job, trigger=trigger)
     scheduler.start()
-    logger.info("Scheduler started. Daily job scheduled at 08:00.")
+    logger.info("Scheduler started. Daily job scheduled at 08:00 %s.", os.getenv("TIMEZONE", "UTC"))
     return scheduler

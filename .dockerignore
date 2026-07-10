@@ -1,0 +1,23 @@
+# Build context exclusions
+.env
+.env.*
+!.env.example
+
+# Local artifacts
+vocab.db
+*.sqlite3
+qr.png
+groups.json
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db

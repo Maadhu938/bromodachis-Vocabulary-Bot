@@ -1,3 +1,4 @@
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date
@@ -10,7 +11,9 @@ class VocabularyService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_next_words(self, limit: int = 5) -> List[Vocabulary]:
+    def get_next_words(self, limit: int = None) -> List[Vocabulary]:
+        if limit is None:
+            limit = int(os.getenv("WORDS_PER_DAY", 5))
         sent_query = self.db.query(SentWords.vocabulary_id)
         next_words = (
             self.db.query(Vocabulary)
