@@ -3,7 +3,6 @@ import os
 from sqlalchemy.orm import Session
 from app.database.connection import SessionLocal, engine, Base
 from app.models.vocabulary import Vocabulary
-from app.models.sent_words import SentWords
 
 def init_db():
     Base.metadata.create_all(bind=engine)

@@ -1,58 +1,55 @@
 import os
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import date
 from typing import List
 
 from app.models.vocabulary import Vocabulary
-from app.models.sent_words import SentWords
+
 
 class VocabularyService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_next_words(self, limit: int = None) -> List[Vocabulary]:
+    def get_next_words_for_user(self, learned_ids: List[int], limit: int = None) -> List[Vocabulary]:
+        """Get next words for a specific user (excluding already learned)"""
         if limit is None:
-            limit = int(os.getenv("WORDS_PER_DAY", 5))
-        sent_query = self.db.query(SentWords.vocabulary_id)
+            limit = int(os.getenv("WORDS_PER_DAY", 10))
+        
+        query = self.db.query(Vocabulary)
+        
+        if learned_ids:
+            query = query.filter(~Vocabulary.id.in_(learned_ids))
+        
         next_words = (
-            self.db.query(Vocabulary)
-            .filter(~Vocabulary.id.in_(sent_query))
-            .order_by(Vocabulary.id)
+            query.order_by(Vocabulary.id)
             .limit(limit)
             .all()
         )
         return next_words
 
-    def mark_as_sent(self, vocab_ids: List[int]) -> int:
-        if not vocab_ids:
-            return 0
-            
-        max_batch = self.db.query(func.max(SentWords.batch_number)).scalar()
-        next_batch = (max_batch or 0) + 1
-        today = date.today()
+    def get_random_words(self, limit: int = 10, exclude_ids: List[int] = None) -> List[Vocabulary]:
+        """Get random words for quiz generation"""
+        query = self.db.query(Vocabulary)
         
-        for v_id in vocab_ids:
-            sent_word = SentWords(
-                vocabulary_id=v_id,
-                sent_date=today,
-                batch_number=next_batch
-            )
-            self.db.add(sent_word)
-            
-        self.db.commit()
-        return next_batch
+        if exclude_ids:
+            query = query.filter(~Vocabulary.id.in_(exclude_ids))
+        
+        return query.order_by(func.random()).limit(limit).all()
 
-    def reset_progress(self):
-        self.db.query(SentWords).delete()
-        self.db.commit()
+    def get_word_by_id(self, word_id: int) -> Vocabulary:
+        """Get a specific word by ID"""
+        return self.db.query(Vocabulary).filter(Vocabulary.id == word_id).first()
+
+    def get_daily_words(self, telegram_id: int, limit: int = 10) -> List[Vocabulary]:
+        """Get daily words for a user (alias for get_next_words_for_user)"""
+        from app.models.user import User
+        from app.services.user_service import UserService
         
-    def get_progress_stats(self) -> dict:
-        total_words = self.db.query(Vocabulary).count()
-        sent_words = self.db.query(func.count(func.distinct(SentWords.vocabulary_id))).scalar()
+        user_service = UserService(self.db)
+        user = user_service.get_user_by_telegram_id(telegram_id)
         
-        return {
-            "total_words": total_words,
-            "sent_words": sent_words,
-            "remaining_words": total_words - sent_words
-        }
+        if not user:
+            return []
+        
+        learned_ids = user_service.get_learned_word_ids(user)
+        return self.get_next_words_for_user(learned_ids, limit=limit)

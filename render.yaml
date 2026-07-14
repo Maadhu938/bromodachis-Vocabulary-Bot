@@ -1,0 +1,27 @@
+# Render deployment configuration
+# Deploy this to Render.com as a Background Worker
+
+services:
+  - type: worker
+    name: japanese-learning-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false  # Set this in Render dashboard
+      - key: ADMIN_IDS
+        sync: false  # Set this in Render dashboard (comma-separated)
+      - key: WORDS_PER_DAY
+        value: "10"
+      - key: TIMEZONE
+        value: "Asia/Kolkata"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: DATABASE_URL
+        value: "sqlite:///app/data/vocab.db"
+      - key: LOG_LEVEL
+        value: "INFO"
+    disk:
+      name: bot-data
+      mountPath: /app/data
+      sizeGB: 1

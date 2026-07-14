@@ -1,130 +1,245 @@
-# Bromodachis Daily Vocabulary Bot 🇯🇵
+# 🎌 Japanese Learning Bot (Telegram Edition)
 
-A daily **JLPT N5 Japanese vocabulary** bot. Every day at **08:00 (Asia/Kolkata)** it picks a configurable number of new words from a CSV dataset, formats them into a post, and sends it to a **WhatsApp group** through [Evolution API](https://doc.evolution-api.com) (an unofficial WhatsApp bridge).
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
+[![Python](https://img.shields.io/badge/Python-3.11-green?logo=python)](https://python.org)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot-blue?logo=telegram)](https://telegram.org)
 
-> **Note on the sender:** Evolution API sends messages from the WhatsApp account you link to it. In the group, posts therefore appear as coming from *your* number/name — there is no separate "bot" identity with this approach.
+A gamified Japanese vocabulary learning bot for Telegram with quizzes, XP system, streaks, and leaderboards! Built with Python, Docker, and deployed on Render.
 
-## How it works
+## ✨ Features
 
-```
-┌─────────────┐      ┌──────────────────┐      ┌────────────────────┐
-│  vocab-bot  │ ───▶ │  Evolution API   │ ───▶ │  WhatsApp Group    │
-│  (FastAPI)  │      │  (WhatsApp bridge)│      │  (Bromodachi's)   │
-└─────────────┘      └──────────────────┘      └────────────────────┘
-      │                        │
-      │ SQLite (vocab.db)     │ PostgreSQL
-      │ word tracking          │ instance / session state
-      ▼                        ▼
- data/n5.csv ──▶ vocab.db   evolution-postgres
-```
+### 🎮 Gamification
+- **XP System** - Earn XP for learning words and taking quizzes
+- **10 Levels** - From Beginner (🔰) to Grandmaster (🌟)
+- **Streak Tracking** - Daily login streaks with bonus XP
+- **Global Leaderboards** - Compete with other learners
 
-1. On startup the bot loads `data/n5.csv` into a local **SQLite** DB (`vocab.db`) — created at image build time by `app/utils/load_csv.py`.
-2. **APScheduler** fires `daily_vocabulary_job` every day at 08:00 in the configured timezone (`TIMEZONE`, default `Asia/Kolkata`).
-3. The job asks `VocabularyService` for the next N unseen words (`N = WORDS_PER_DAY`), marks them sent (so they are never repeated until the list is exhausted), and formats them via `MessageFormatter`.
-4. `WhatsAppMessagingService` POSTs the text to Evolution API (`/message/sendText/{instance}`), which delivers it to `WHATSAPP_GROUP_ID`.
+### 📚 Learning
+- **Daily Vocabulary** - JLPT N5 words delivered daily
+- **Interactive Quizzes** - 3 question types with instant feedback
+- **Progress Tracking** - Personal stats and achievements
+- **700+ Words** - Complete JLPT N5 vocabulary
 
-## Features
-- **Configurable words/day** — set `WORDS_PER_DAY` (default `5`, currently `3`).
-- **Timezone-aware scheduling** — runs at 08:00 in `TIMEZONE` (IST by default).
-- **No-duplicate progress tracking** — `sent_words` table records what was sent; `/reset` starts over.
-- **Manual + scheduled triggers** — REST endpoints for on-demand send, progress, and reset.
-- **Replaceable messaging layer** — `app/messaging/whatsapp.py` is the live sender; `app/messaging/mock.py` is a console-only logger kept for local testing.
+### 🐳 DevOps
+- **Docker Containerized** - Production-ready Docker setup
+- **Cloud Deployed** - Ready for Render.com deployment
+- **Persistent Storage** - SQLite database with volume mounting
+- **Environment Config** - Easy configuration via env vars
 
-## Folder Structure
-```
-bromodachis-vocab-bot/
-├── app/
-│   ├── api/
-│   │   └── routes.py          # FastAPI endpoints (/today, /send, /progress, /reset)
-│   ├── services/
-│   │   ├── vocabulary.py      # Word selection + sent-history tracking
-│   │   └── formatter.py       # Formats words into the chat message
-│   ├── scheduler/
-│   │   └── tasks.py           # APScheduler cron job (08:00, configurable TZ)
-│   ├── messaging/
-│   │   ├── whatsapp.py        # Live sender via Evolution API (v2 payload)
-│   │   └── mock.py            # Console logger for local testing
-│   ├── database/
-│   │   └── connection.py      # SQLAlchemy engine (SQLite vocab.db)
-│   ├── models/
-│   │   ├── vocabulary.py      # Vocabulary table
-│   │   └── sent_words.py      # Sent-history table
-│   ├── utils/
-│   │   └── load_csv.py        # Loads data/n5.csv → vocab.db (runs at build)
-│   └── main.py                # FastAPI app + lifespan (DB init, scheduler)
-├── data/
-│   └── n5.csv                # Vocabulary dataset (expression,reading,meaning,tags)
-├── docker-compose.yml          # evolution-api + postgres + vocab-bot
-├── Dockerfile                  # Builds vocab-bot (installs tzdata, loads CSV)
-├── .env.example               # Config template (copy to .env)
-├── requirements.txt
-└── README.md
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11+ or Docker
+- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+
+### Option 1: Docker (Recommended)
+
+```bash
+# Clone and setup
+git clone <your-repo-url>
+cd whatsapp-bot
+cp .env.example .env
+# Edit .env and add TELEGRAM_BOT_TOKEN
+
+# Run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
 ```
 
-## Prerequisites
-- **Docker** + **Docker Compose** v2.
-- A WhatsApp account you can link via QR code.
+### Option 2: Local Python
 
-## Setup
-
-1. **Configure environment** — copy the template and fill in real values:
-   ```cmd
-   copy .env.example .env
-   ```
-   | Variable | Description |
-   | --- | --- |
-   | `EVOLUTION_API_KEY` | Global API key for Evolution API (used in the `apikey` header). |
-   | `EVOLUTION_INSTANCE_NAME` | Evolution instance name (e.g. `bromodachis`). |
-   | `WHATSAPP_GROUP_ID` | Target group id, e.g. `120363xxxxxxxxxx@g.us`. |
-   | `WORDS_PER_DAY` | Words sent per batch (default `5`). |
-   | `TIMEZONE` | IANA timezone for the 08:00 schedule (e.g. `Asia/Kolkata`). |
-
-2. **Start the stack** (Evolution API + PostgreSQL + bot):
-   ```cmd
-   docker-compose up -d
-   ```
-   This pulls `evoapicloud/evolution-api:latest`, a `postgres:16` DB (required by current Evolution API), and builds/runs the bot.
-
-3. **Link your WhatsApp number.** The current Evolution API image does **not** ship the `/manager` web UI, so create the instance and get the QR via the REST API (a small helper is provided):
-   ```cmd
-   python get_qr.py
-   ```
-   This writes `qr.png` — open it with your phone (**WhatsApp → Linked Devices → Link a Device**) and scan promptly (QRs expire in ~60s; re-run if needed).
-
-4. **Find the group id.** Once connected, fetch your groups and copy the `id` of the target group into `.env` as `WHATSAPP_GROUP_ID`:
-   ```powershell
-   # PowerShell
-   $h = @{"apikey"="<EVOLUTION_API_KEY>"}
-   (Invoke-WebRequest "http://localhost:8080/group/fetchAllGroups/bromodachis?getParticipants=false" -Headers $h).Content
-   ```
-   Then `docker-compose up -d --force-recreate vocab-bot` to pick up the new value.
-
-## Running
-The bot runs as a container and is already scheduled. Useful commands:
-```cmd
-docker-compose ps                 # see all services
-docker-compose logs -f vocab-bot # bot logs (sends, scheduler)
-docker-compose logs -f evolution-api
-docker-compose down              # stop everything
-```
-
-## API Endpoints (bot, port 8000)
-- **GET `/today`** — preview the next `WORDS_PER_DAY` words **without** marking them sent.
-- **POST `/send`** — pick the next words, mark them sent, format, and push to WhatsApp immediately.
-- **GET `/progress`** — `{ total_words, sent_words, remaining_words }`.
-- **POST `/reset`** — clear sent history (back to day 1).
-
-## Local development (without WhatsApp)
-For working on formatting/logic without Evolution API, the bot can run locally against the `MockMessagingService` (console logger). Set the messaging import to `mock` (or use the `WORDS_PER_DAY`/`TIMEZONE` env vars) and run:
-```cmd
-python -m venv .venv && .\.venv\Scripts\activate
+```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Setup environment
+cp .env.example .env
+# Edit .env and add TELEGRAM_BOT_TOKEN
+
+# Initialize database
+python -c "from app.database.connection import init_db; init_db()"
 python -m app.utils.load_csv
-set PYTHONPATH=.
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+# Run bot
+python run_telegram_bot.py
 ```
 
-## Known limitations
-- Messages originate from your linked personal WhatsApp number (see note above).
-- `vocab.db` is baked into the image at build time from `data/n5.csv`; `/reset` only clears sent-history, it does not reload the CSV.
-- Evolution API is an **unofficial** WhatsApp integration — use responsibly and within WhatsApp's terms.
+## 📱 Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Register and start learning |
+| `/daily` | Get today's vocabulary (+10 XP) |
+| `/quiz` | Start quiz session (+5 XP per correct) |
+| `/stats` | View your progress |
+| `/leaderboard` | Global rankings |
+| `/help` | Show commands |
+
+## 🎮 How It Works
+
+1. **Start** - Use `/start` to register
+2. **Learn** - Get daily words with `/daily`
+3. **Quiz** - Test knowledge with `/quiz`
+4. **Earn XP** - Level up and compete!
+
+### XP Rewards
+| Action | XP |
+|--------|-----|
+| Daily vocabulary | 10 XP |
+| Correct quiz answer | 5 XP |
+| New word learned | 2 XP |
+| 7-day streak | 50 XP bonus |
+| 30-day streak | 200 XP bonus |
+
+## 🐳 Docker Deployment
+
+### Local Development
+```bash
+# Build
+docker build -t japanese-bot .
+
+# Run
+docker run -d --env-file .env japanese-bot
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+### Deploy to Render.com
+
+1. **Push to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Connect to Render:**
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New +" → "Blueprint"
+   - Connect your GitHub repo
+
+3. **Set Environment Variables:**
+   - Add `TELEGRAM_BOT_TOKEN` in Render dashboard
+
+4. **Deploy:**
+   - Render automatically deploys from `render.yaml`
+
+See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for detailed instructions.
+
+## 🏗️ Project Structure
+
+```
+whatsapp-bot/
+├── app/
+│   ├── telegram_bot.py          # Main bot
+│   ├── database/
+│   │   └── connection.py        # DB setup
+│   ├── keyboards/
+│   │   └── inline_keyboards.py  # Telegram buttons
+│   ├── models/
+│   │   ├── vocabulary.py        # Word model
+│   │   └── user.py              # User models
+│   ├── services/
+│   │   ├── vocabulary.py        # Word service
+│   │   ├── user_service.py      # XP/levels/streaks
+│   │   └── quiz_service.py      # Quiz generation
+│   └── utils/
+│       ├── constants.py         # Config & messages
+│       └── load_csv.py          # Data loader
+├── data/
+│   └── n5.csv                   # 700+ JLPT N5 words
+├── scripts/
+│   └── docker-entrypoint.sh     # Docker startup
+├── Dockerfile                   # Docker image
+├── docker-compose.yml           # Local dev
+├── render.yaml                  # Render config
+├── .dockerignore                # Docker exclusions
+├── requirements.txt             # Dependencies
+├── run_telegram_bot.py          # Entry point
+└── README.md                    # This file
+```
+
+## 🛠️ Technologies
+
+- **Python 3.11** - Core language
+- **python-telegram-bot** - Telegram Bot API
+- **SQLAlchemy** - Database ORM
+- **SQLite** - Database
+- **Docker** - Containerization
+- **Render** - Cloud deployment
+
+## 📊 Features for Job Applications
+
+This project demonstrates:
+
+✅ **Backend Development**
+- Python application architecture
+- Database design and ORM usage
+- Service layer pattern
+
+✅ **DevOps & Cloud**
+- Docker containerization
+- Docker Compose orchestration
+- Cloud deployment (Render)
+- Environment management
+- Volume persistence
+
+✅ **Bot Development**
+- Telegram Bot API integration
+- Interactive inline keyboards
+- State management
+- User session handling
+
+✅ **Gamification**
+- XP and leveling system
+- Streak tracking
+- Leaderboards
+- Progress analytics
+
+## 📝 Environment Variables
+
+```env
+TELEGRAM_BOT_TOKEN=your_token_from_botfather
+WORDS_PER_DAY=3
+TIMEZONE=Asia/Kolkata
+```
+
+## 🔒 Security
+
+- Environment variables for secrets
+- `.env` in `.gitignore`
+- No hardcoded tokens
+- Docker security best practices
+
+## 📚 Documentation
+
+- [README_TELEGRAM.md](README_TELEGRAM.md) - Detailed bot features
+- [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Docker & deployment guide
+- [TELEGRAM_BOT_PLAN.md](TELEGRAM_BOT_PLAN.md) - Implementation plan
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Open Pull Request
+
+## 📄 License
+
+MIT License - Feel free to use for your projects!
+
+## 🙏 Credits
+
+- Vocabulary data: JLPT N5 word list
+- Built with: Python, Docker, Render
+- Inspired by: Japanese learning community
+
+---
+
+**Happy Learning!** 頑張って！ (Ganbatte!) 💪🇯🇵
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
