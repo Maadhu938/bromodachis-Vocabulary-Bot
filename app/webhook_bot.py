@@ -702,8 +702,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Word marked as learned! Keep it up!")
     
     elif data == "quiz_end":
+        await query.answer("Quiz ended!")
         quiz_sessions.pop(user.id, None)
-        await query.edit_message_text("Quiz ended. Use /quiz to start a new one!")
+        await query.edit_message_text("❌ Quiz ended. Use /quiz to start a new one!", reply_markup=get_start_keyboard())
 
 
 # ============== ADMIN COMMAND HANDLERS ==============
