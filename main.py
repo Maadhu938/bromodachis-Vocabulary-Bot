@@ -5,6 +5,7 @@ Deploy this on Render as a Web Service (FREE tier - no credit card needed!)
 import os
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
@@ -84,11 +85,13 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint"""
+@app.post("/health")
+async def health_check(request: Request = None):
+    """Health check endpoint - supports GET and POST for UptimeRobot compatibility"""
     return {
         "status": "healthy",
-        "bot_initialized": bot_app is not None
+        "bot_initialized": bot_app is not None,
+        "timestamp": datetime.now().isoformat()
     }
 
 
