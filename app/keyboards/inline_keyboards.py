@@ -134,7 +134,10 @@ def get_start_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")
         ],
         [
-            InlineKeyboardButton("📊 View Stats", callback_data="show_stats"),
+            InlineKeyboardButton("🤖 Ask AI", callback_data="show_ai_help"),
+            InlineKeyboardButton("📊 View Stats", callback_data="show_stats")
+        ],
+        [
             InlineKeyboardButton("❓ Help", callback_data="show_help")
         ]
     ]

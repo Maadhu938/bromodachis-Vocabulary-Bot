@@ -2,12 +2,16 @@ import csv
 import os
 from sqlalchemy.orm import Session
 from app.database.connection import SessionLocal, engine, Base
-from app.models.vocabulary import Vocabulary
 
 def init_db():
+    # Import models here to avoid circular imports
+    from app.models.vocabulary import Vocabulary
     Base.metadata.create_all(bind=engine)
 
 def load_csv_to_db(csv_path: str):
+    # Import models here to avoid circular imports
+    from app.models.vocabulary import Vocabulary
+    
     db: Session = SessionLocal()
     
     # Check if table already has data

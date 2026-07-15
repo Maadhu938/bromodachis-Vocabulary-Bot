@@ -30,7 +30,11 @@ class QuizQuestion:
         self.expression = expression
         self.reading = reading
         self.meaning = meaning
-        self.correct_index = options.index(correct_answer)
+        try:
+            self.correct_index = options.index(correct_answer)
+        except ValueError:
+            # Fallback if correct answer not in options (shouldn't happen)
+            self.correct_index = 0
 
 
 class QuizService:

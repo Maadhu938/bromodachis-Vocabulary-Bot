@@ -7,3 +7,4 @@ requests
 pydantic
 python-telegram-bot>=20.0
 python-dateutil
+groq

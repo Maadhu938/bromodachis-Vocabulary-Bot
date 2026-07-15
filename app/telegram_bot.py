@@ -4,13 +4,12 @@ import logging
 from datetime import date, datetime
 from typing import Dict, List
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
-    ContextTypes,
-    ConversationHandler
+    ContextTypes
 )
 from dotenv import load_dotenv
 
@@ -20,6 +19,7 @@ from app.services.quiz_service import QuizService, QuizQuestion
 from app.services.vocabulary import VocabularyService
 from app.services.formatter import MessageFormatter
 from app.services.admin_service import AdminService
+from app.services.ai_service import ai_service
 from app.utils.constants import (
     WELCOME_MESSAGE,
     HELP_MESSAGE,
@@ -348,6 +348,52 @@ async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
 
 
+async def learned_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /learned command - show words user has learned"""
+    user = update.effective_user
+    db = get_db()
+    
+    try:
+        user_service = UserService(db)
+        vocab_service = VocabularyService(db)
+        
+        db_user = user_service.get_user_by_telegram_id(user.id)
+        if not db_user:
+            await update.message.reply_text("Please use /start first!")
+            return
+        
+        # Get learned word IDs
+        learned_ids = user_service.get_learned_word_ids(db_user)
+        
+        if not learned_ids:
+            await update.message.reply_text(
+                "📚 You haven't learned any words yet!\n\n"
+                "Use /daily to start learning vocabulary."
+            )
+            return
+        
+        # Get the actual words
+        learned_words = []
+        for word_id in learned_ids[-20:]:  # Show last 20 words
+            word = vocab_service.get_word_by_id(word_id)
+            if word:
+                learned_words.append(word)
+        
+        # Build message
+        message = f"<b>📚 Words You've Learned</b>\n"
+        message += f"<b>Total:</b> {len(learned_ids)} words\n\n"
+        
+        for i, word in enumerate(reversed(learned_words), 1):
+            message += f"{i}. <b>{word.expression}</b>\n"
+            message += f"   📖 {word.reading}\n"
+            message += f"   📝 {word.meaning}\n\n"
+        
+        await update.message.reply_html(message)
+        
+    finally:
+        db.close()
+
+
 # ============== QUIZ FUNCTIONS ==============
 
 async def send_quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -450,7 +496,7 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_quiz_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle quiz navigation (next/prev)"""
+    """Handle quiz navigation (next/prev/end)"""
     query = update.callback_query
     await query.answer()
     
@@ -467,6 +513,14 @@ async def handle_quiz_navigation(update: Update, context: ContextTypes.DEFAULT_T
     
     elif data[0] == "quiz_finish":
         await finish_quiz(update, context, user_id)
+    
+    elif data[0] == "quiz_end":
+        # End quiz immediately
+        quiz_sessions.pop(user_id, None)
+        await query.edit_message_text(
+            "❌ Quiz ended. Use /quiz to start a new one!",
+            reply_markup=get_start_keyboard()
+        )
 
 
 async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -651,6 +705,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == "show_help":
         await query.edit_message_text(HELP_MESSAGE, reply_markup=get_help_keyboard(), parse_mode="HTML")
+    
+    elif data == "show_ai_help":
+        ai_help_text = """
+🤖 <b>AI Assistant</b>
+
+I can help you with Japanese using AI!
+
+<b>Available Commands:</b>
+/ask <question> - Ask anything about Japanese
+/grammar <point> - Get grammar explanations
+/translate <text> - Translate EN↔JP
+/practice [topic] - Conversation practice
+/tips - Get study tips
+
+<b>Examples:</b>
+/ask How do I use the particle は?
+/grammar て-form
+/translate Hello, how are you?
+/practice ordering at a restaurant
+
+Try it now! 💡
+        """.strip()
+        await query.edit_message_text(ai_help_text, reply_markup=get_start_keyboard(), parse_mode="HTML")
     
     elif data.startswith("learn_word:"):
         word_id = int(data.split(":")[1])
@@ -1058,6 +1135,143 @@ async def admin_list_managers_command(update: Update, context: ContextTypes.DEFA
     await update.message.reply_html(message)
 
 
+# ============== AI COMMAND HANDLERS ==============
+
+async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask AI anything about Japanese"""
+    if not context.args:
+        await update.message.reply_html(
+            "🤖 <b>Ask AI</b>\n\n"
+            "Ask me anything about Japanese!\n\n"
+            "<b>Examples:</b>\n"
+            "/ask How do I use the particle は?\n"
+            "/ask What's the difference between です and ます?\n"
+            "/ask Explain te-form conjugation"
+        )
+        return
+    
+    question = " ".join(context.args)
+    
+    # Show typing indicator
+    await update.message.chat.send_action(action="typing")
+    
+    try:
+        response = ai_service.ask(question)
+        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{response}")
+    except Exception as e:
+        logger.error(f"AI ask error: {e}")
+        await update.message.reply_text("❌ Sorry, I couldn't process your question. Please try again!")
+
+
+async def grammar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Get AI explanation for a grammar point"""
+    if not context.args:
+        await update.message.reply_html(
+            "📚 <b>Grammar Explainer</b>\n\n"
+            "Get detailed explanations of Japanese grammar points!\n\n"
+            "<b>Examples:</b>\n"
+            "/grammar て-form\n"
+            "/grammar passive voice\n"
+            "/grammar たら vs ば"
+        )
+        return
+    
+    grammar_point = " ".join(context.args)
+    
+    # Show typing indicator
+    await update.message.chat.send_action(action="typing")
+    
+    try:
+        response = ai_service.explain_grammar(grammar_point)
+        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{response}")
+    except Exception as e:
+        logger.error(f"AI grammar error: {e}")
+        await update.message.reply_text("❌ Sorry, I couldn't explain that grammar point. Please try again!")
+
+
+async def translate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Translate between English and Japanese"""
+    if not context.args:
+        await update.message.reply_html(
+            "🌐 <b>Translator</b>\n\n"
+            "Translate between English and Japanese!\n\n"
+            "<b>Usage:</b>\n"
+            "/translate <text> - Auto-detects language\n\n"
+            "<b>Examples:</b>\n"
+            "/translate Hello, how are you?\n"
+            "/translate おはようございます"
+        )
+        return
+    
+    text = " ".join(context.args)
+    
+    # Detect if text is Japanese
+    is_japanese = any('\u3040' <= char <= '\u309f' or '\u30a0' <= char <= '\u30ff' or '\u4e00' <= char <= '\u9fff' for char in text)
+    
+    # Show typing indicator
+    await update.message.chat.send_action(action="typing")
+    
+    try:
+        response = ai_service.translate(text, to_japanese=not is_japanese)
+        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{response}")
+    except Exception as e:
+        logger.error(f"AI translate error: {e}")
+        await update.message.reply_text("❌ Sorry, I couldn't translate that. Please try again!")
+
+
+async def practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Get AI-generated conversation practice"""
+    user = update.effective_user
+    db = get_db()
+    
+    try:
+        user_service = UserService(db)
+        db_user = user_service.get_user_by_telegram_id(user.id)
+        
+        # Determine user level
+        if db_user:
+            level = db_user.level
+            if level <= 3:
+                user_level = "beginner"
+            elif level <= 6:
+                user_level = "intermediate"
+            else:
+                user_level = "advanced"
+        else:
+            user_level = "beginner"
+        
+        # Get topic from args or use default
+        if context.args:
+            topic = " ".join(context.args)
+        else:
+            topic = "daily conversation"
+        
+        # Show typing indicator
+        await update.message.chat.send_action(action="typing")
+        
+        try:
+            response = ai_service.practice_conversation(topic, user_level)
+            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{response}")
+        except Exception as e:
+            logger.error(f"AI practice error: {e}")
+            await update.message.reply_text("❌ Sorry, I couldn't generate practice. Please try again!")
+    finally:
+        db.close()
+
+
+async def tips_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Get AI study tips"""
+    # Show typing indicator
+    await update.message.chat.send_action(action="typing")
+    
+    try:
+        response = ai_service.get_study_tips()
+        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{response}")
+    except Exception as e:
+        logger.error(f"AI tips error: {e}")
+        await update.message.reply_text("❌ Sorry, I couldn't get study tips. Please try again!")
+
+
 # ============== MAIN FUNCTION ==============
 
 def main():
@@ -1078,6 +1292,14 @@ def main():
     application.add_handler(CommandHandler("quiz", quiz_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("leaderboard", leaderboard_command))
+    application.add_handler(CommandHandler("learned", learned_command))
+    
+    # Add AI command handlers
+    application.add_handler(CommandHandler("ask", ask_command))
+    application.add_handler(CommandHandler("grammar", grammar_command))
+    application.add_handler(CommandHandler("translate", translate_command))
+    application.add_handler(CommandHandler("practice", practice_command))
+    application.add_handler(CommandHandler("tips", tips_command))
     
     # Add admin command handlers
     application.add_handler(CommandHandler("adminstats", admin_stats_command))

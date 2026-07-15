@@ -5,11 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Create Base first (before importing models)
 Base = declarative_base()
 
-# Import all models to ensure they're registered with Base
-from app.models.vocabulary import Vocabulary
-from app.models.user import User, UserWord, QuizResult
-
-# Note: Add any new models here to ensure they're registered with Base
+# Note: Models are imported in init_db() to avoid circular imports
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./vocab.db"
 
@@ -29,4 +25,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
+    # Import models here to avoid circular imports
+    from app.models.vocabulary import Vocabulary
+    from app.models.user import User, UserWord, QuizResult
     Base.metadata.create_all(bind=engine)

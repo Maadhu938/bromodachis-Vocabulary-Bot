@@ -57,12 +57,14 @@ I'm here to help you learn Japanese vocabulary and track your progress!
 <b>What I can do:</b>
 📚 Send daily vocabulary words
 🎯 Quiz you on words you've learned
+🤖 Answer your Japanese questions with AI
 📊 Track your learning streak
 🏆 Compete on leaderboards
 
 <b>Commands:</b>
 /daily - Get today's vocabulary
 /quiz - Test your knowledge
+/ask - Ask AI anything about Japanese
 /stats - View your progress
 /leaderboard - See top learners
 /help - Show all commands
@@ -77,6 +79,13 @@ HELP_MESSAGE = """
 /daily - Get today's vocabulary words
 /quiz - Take a quiz (5 questions)
 /learned - View words you've learned
+
+<b>🤖 AI Assistant:</b>
+/ask <question> - Ask AI anything about Japanese
+/grammar <point> - Get grammar explanations
+/translate <text> - Translate EN↔JP
+/practice [topic] - Conversation practice
+/tips - Get study tips
 
 <b>Progress:</b>
 /stats - Your stats, XP, level, and streak
