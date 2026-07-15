@@ -1163,9 +1163,8 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.ask(question)
-        # Escape HTML special characters to prevent parsing errors
-        safe_response = html.escape(response)
-        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{safe_response}")
+        # AI response already contains HTML formatting
+        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI ask error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't process your question. Please try again!")
@@ -1191,9 +1190,8 @@ async def grammar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.explain_grammar(grammar_point)
-        # Escape HTML special characters to prevent parsing errors
-        safe_response = html.escape(response)
-        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{safe_response}")
+        # AI response already contains HTML formatting
+        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI grammar error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't explain that grammar point. Please try again!")
@@ -1223,9 +1221,8 @@ async def translate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.translate(text, to_japanese=not is_japanese)
-        # Escape HTML special characters to prevent parsing errors
-        safe_response = html.escape(response)
-        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{safe_response}")
+        # AI response already contains HTML formatting
+        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI translate error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't translate that. Please try again!")
@@ -1263,9 +1260,8 @@ async def practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             response = ai_service.practice_conversation(topic, user_level)
-            # Escape HTML special characters to prevent parsing errors
-            safe_response = html.escape(response)
-            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{safe_response}")
+            # AI response already contains HTML formatting
+            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{response}")
         except Exception as e:
             logger.error(f"AI practice error: {e}")
             await update.message.reply_text("❌ Sorry, I couldn't generate practice. Please try again!")
@@ -1280,9 +1276,8 @@ async def tips_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.get_study_tips()
-        # Escape HTML special characters to prevent parsing errors
-        safe_response = html.escape(response)
-        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{safe_response}")
+        # AI response already contains HTML formatting
+        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI tips error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't get study tips. Please try again!")
