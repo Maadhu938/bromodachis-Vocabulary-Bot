@@ -12,7 +12,7 @@ import asyncio
 
 from app.webhook_bot import setup_application, process_update
 from app.database.connection import init_db
-from app.utils.load_csv import load_vocabulary_from_csv
+from app.utils.load_csv import load_csv_to_db
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     
     # Load vocabulary data
     logger.info("📚 Loading vocabulary data...")
-    load_vocabulary_from_csv()
+    load_csv_to_db("data/n5.csv")
     
     # Setup bot application
     logger.info("🤖 Setting up Telegram bot...")
