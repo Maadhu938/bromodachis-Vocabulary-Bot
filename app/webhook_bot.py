@@ -347,6 +347,52 @@ async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         db.close()
 
 
+async def learned_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /learned command - show words user has learned"""
+    user = update.effective_user
+    db = get_db()
+    
+    try:
+        user_service = UserService(db)
+        vocab_service = VocabularyService(db)
+        
+        db_user = user_service.get_user_by_telegram_id(user.id)
+        if not db_user:
+            await update.message.reply_text("Please use /start first!")
+            return
+        
+        # Get learned word IDs
+        learned_ids = user_service.get_learned_word_ids(db_user)
+        
+        if not learned_ids:
+            await update.message.reply_text(
+                "📚 You haven't learned any words yet!\n\n"
+                "Use /daily to start learning vocabulary."
+            )
+            return
+        
+        # Get the actual words
+        learned_words = []
+        for word_id in learned_ids[-20:]:  # Show last 20 words
+            word = vocab_service.get_word_by_id(word_id)
+            if word:
+                learned_words.append(word)
+        
+        # Build message
+        message = f"<b>📚 Words You've Learned</b>\n"
+        message += f"<b>Total:</b> {len(learned_ids)} words\n\n"
+        
+        for i, word in enumerate(reversed(learned_words), 1):
+            message += f"{i}. <b>{word.expression}</b>\n"
+            message += f"   📖 {word.reading}\n"
+            message += f"   📝 {word.meaning}\n\n"
+        
+        await update.message.reply_html(message)
+        
+    finally:
+        db.close()
+
+
 # ============== QUIZ FUNCTIONS ==============
 
 async def send_quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -1082,6 +1128,7 @@ async def setup_application():
     application.add_handler(CommandHandler("quiz", quiz_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("leaderboard", leaderboard_command))
+    application.add_handler(CommandHandler("learned", learned_command))
     
     # Add admin command handlers
     application.add_handler(CommandHandler("adminstats", admin_stats_command))
