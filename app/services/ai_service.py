@@ -16,7 +16,14 @@ class AIService:
 - Providing cultural context
 - Giving study tips
 
-Keep responses concise but informative. Use romaji readings for Japanese words."""
+Keep responses concise but informative. Use romaji readings for Japanese words.
+
+Format your responses using Markdown:
+- Use **bold** for emphasis
+- Use *italic* for Japanese words
+- Use `code` for grammar patterns
+- Use bullet points and numbered lists for clarity
+- Use ### for section headers if needed"""
 
         messages = [
             {"role": "system", "content": system_prompt},
