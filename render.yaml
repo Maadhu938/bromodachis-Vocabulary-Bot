@@ -1,16 +1,20 @@
 # Render deployment configuration
-# Deploy this to Render.com as a Background Worker
+# Deploy this to Render.com as a FREE Web Service (no credit card needed!)
 
 services:
-  - type: worker
+  - type: web
     name: japanese-learning-bot
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false  # Set this in Render dashboard
       - key: ADMIN_IDS
         sync: false  # Set this in Render dashboard (comma-separated)
+      - key: WEBHOOK_URL
+        sync: false  # Will be: https://your-service-name.onrender.com/webhook
       - key: WORDS_PER_DAY
         value: "10"
       - key: TIMEZONE
