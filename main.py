@@ -86,8 +86,9 @@ async def root():
 
 @app.get("/health")
 @app.post("/health")
+@app.head("/health")
 async def health_check(request: Request = None):
-    """Health check endpoint - supports GET and POST for UptimeRobot compatibility"""
+    """Health check endpoint - supports GET, POST, and HEAD for UptimeRobot compatibility"""
     return {
         "status": "healthy",
         "bot_initialized": bot_app is not None,

@@ -1158,7 +1158,7 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.ask(question)
-        await update.message.reply_text(f"🤖 *Maddy AI says:*\n\n{response}", parse_mode="Markdown")
+        await update.message.reply_html(f"🤖 <b>Maddy AI says:</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI ask error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't process your question. Please try again!")
@@ -1185,7 +1185,7 @@ async def grammar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.explain_grammar(grammar_point)
-        await update.message.reply_text(f"📚 *Grammar: {grammar_point}*\n\n{response}", parse_mode="Markdown")
+        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI grammar error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't explain that grammar point. Please try again!")
@@ -1216,7 +1216,7 @@ async def translate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.translate(text, to_japanese=not is_japanese)
-        await update.message.reply_text(f"🌐 *Translation:*\n\n{response}", parse_mode="Markdown")
+        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI translate error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't translate that. Please try again!")
@@ -1254,7 +1254,7 @@ async def practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             response = ai_service.practice_conversation(topic, user_level)
-            await update.message.reply_text(f"🗣️ *Conversation Practice: {topic}*\n\n{response}", parse_mode="Markdown")
+            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{response}")
         except Exception as e:
             logger.error(f"AI practice error: {e}")
             await update.message.reply_text("❌ Sorry, I couldn't generate practice. Please try again!")
@@ -1269,7 +1269,7 @@ async def tips_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.get_study_tips()
-        await update.message.reply_text(f"💡 *Study Tips from Maddy*\n\n{response}", parse_mode="Markdown")
+        await update.message.reply_html(f"💡 <b>Study Tips from Maddy</b>\n\n{response}")
     except Exception as e:
         logger.error(f"AI tips error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't get study tips. Please try again!")
