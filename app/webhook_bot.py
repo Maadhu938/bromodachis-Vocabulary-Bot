@@ -2,6 +2,7 @@
 import os
 import logging
 import asyncio
+import html
 from datetime import date, datetime
 from typing import Dict, List
 
@@ -495,7 +496,7 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_quiz_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle quiz navigation (next/prev)"""
+    """Handle quiz navigation (next/prev/end)"""
     query = update.callback_query
     await query.answer()
     
@@ -512,6 +513,14 @@ async def handle_quiz_navigation(update: Update, context: ContextTypes.DEFAULT_T
     
     elif data[0] == "quiz_finish":
         await finish_quiz(update, context, user_id)
+    
+    elif data[0] == "quiz_end":
+        # End quiz immediately
+        quiz_sessions.pop(user_id, None)
+        await query.edit_message_text(
+            "❌ Quiz ended. Use /quiz to start a new one!",
+            reply_markup=get_start_keyboard()
+        )
 
 
 async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -705,26 +714,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(HELP_MESSAGE, reply_markup=get_help_keyboard(), parse_mode="HTML")
     
     elif data == "show_ai_help":
-        ai_help_text = """
-🤖 <b>AI Assistant</b>
+        ai_help_text = """🤖 <b>AI Assistant</b>
 
 I can help you with Japanese using AI!
 
 <b>Available Commands:</b>
-/ask <question> - Ask anything about Japanese
-/grammar <point> - Get grammar explanations
-/translate <text> - Translate EN↔JP
-/practice [topic] - Conversation practice
-/tips - Get study tips
+• /ask - Ask anything about Japanese
+• /grammar - Get grammar explanations
+• /translate - Translate EN↔JP
+• /practice - Conversation practice
+• /tips - Get study tips
 
 <b>Examples:</b>
-/ask How do I use the particle は?
-/grammar て-form
-/translate Hello, how are you?
-/practice ordering at a restaurant
+• /ask How do I use the particle は?
+• /grammar て-form
+• /translate Hello, how are you?
+• /practice ordering at a restaurant
 
-Try it now! 💡
-        """.strip()
+Try it now! 💡"""
         await query.edit_message_text(ai_help_text, reply_markup=get_start_keyboard(), parse_mode="HTML")
     
     elif data.startswith("learn_word:"):
@@ -1156,7 +1163,9 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.ask(question)
-        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{response}")
+        # Escape HTML special characters to prevent parsing errors
+        safe_response = html.escape(response)
+        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI ask error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't process your question. Please try again!")
@@ -1182,7 +1191,9 @@ async def grammar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.explain_grammar(grammar_point)
-        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{response}")
+        # Escape HTML special characters to prevent parsing errors
+        safe_response = html.escape(response)
+        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI grammar error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't explain that grammar point. Please try again!")
@@ -1212,7 +1223,9 @@ async def translate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.translate(text, to_japanese=not is_japanese)
-        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{response}")
+        # Escape HTML special characters to prevent parsing errors
+        safe_response = html.escape(response)
+        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI translate error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't translate that. Please try again!")
@@ -1250,7 +1263,9 @@ async def practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             response = ai_service.practice_conversation(topic, user_level)
-            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{response}")
+            # Escape HTML special characters to prevent parsing errors
+            safe_response = html.escape(response)
+            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{safe_response}")
         except Exception as e:
             logger.error(f"AI practice error: {e}")
             await update.message.reply_text("❌ Sorry, I couldn't generate practice. Please try again!")
@@ -1265,7 +1280,9 @@ async def tips_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.get_study_tips()
-        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{response}")
+        # Escape HTML special characters to prevent parsing errors
+        safe_response = html.escape(response)
+        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI tips error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't get study tips. Please try again!")
