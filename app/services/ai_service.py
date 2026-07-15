@@ -28,7 +28,7 @@ Keep responses concise but informative. Use romaji readings for Japanese words."
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=500
+                max_tokens=1024
             )
             return response.choices[0].message.content
         except Exception as e:

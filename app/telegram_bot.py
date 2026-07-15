@@ -708,12 +708,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == "show_ai_help":
         ai_help_text = """
-🤖 <b>AI Assistant</b>
+🤖 <b>Maddy AI</b>
 
-I can help you with Japanese using AI!
+Hi! I'm Maddy, your Japanese learning assistant! 🇯🇵
 
 <b>Available Commands:</b>
-/ask <question> - Ask anything about Japanese
+/ask <question> - Ask me anything about Japanese
 /grammar <point> - Get grammar explanations
 /translate <text> - Translate EN↔JP
 /practice [topic] - Conversation practice
@@ -725,7 +725,7 @@ I can help you with Japanese using AI!
 /translate Hello, how are you?
 /practice ordering at a restaurant
 
-Try it now! 💡
+Let's learn Japanese together! 💡
         """.strip()
         await query.edit_message_text(ai_help_text, reply_markup=get_start_keyboard(), parse_mode="HTML")
     
@@ -1141,7 +1141,7 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ask AI anything about Japanese"""
     if not context.args:
         await update.message.reply_html(
-            "🤖 <b>Ask AI</b>\n\n"
+            "🤖 <b>Ask Maddy AI</b>\n\n"
             "Ask me anything about Japanese!\n\n"
             "<b>Examples:</b>\n"
             "/ask How do I use the particle は?\n"
@@ -1157,7 +1157,10 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.ask(question)
-        await update.message.reply_html(f"🤖 <b>AI Response:</b>\n\n{response}")
+        # Escape HTML special characters in the response
+        from html import escape
+        safe_response = escape(response)
+        await update.message.reply_html(f"🤖 <b>Maddy AI says:</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI ask error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't process your question. Please try again!")
@@ -1183,7 +1186,10 @@ async def grammar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.explain_grammar(grammar_point)
-        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{response}")
+        # Escape HTML special characters in the response
+        from html import escape
+        safe_response = escape(response)
+        await update.message.reply_html(f"📚 <b>Grammar: {grammar_point}</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI grammar error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't explain that grammar point. Please try again!")
@@ -1213,7 +1219,10 @@ async def translate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.translate(text, to_japanese=not is_japanese)
-        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{response}")
+        # Escape HTML special characters in the response
+        from html import escape
+        safe_response = escape(response)
+        await update.message.reply_html(f"🌐 <b>Translation:</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI translate error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't translate that. Please try again!")
@@ -1251,7 +1260,10 @@ async def practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         try:
             response = ai_service.practice_conversation(topic, user_level)
-            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{response}")
+            # Escape HTML special characters in the response
+            from html import escape
+            safe_response = escape(response)
+            await update.message.reply_html(f"🗣️ <b>Conversation Practice: {topic}</b>\n\n{safe_response}")
         except Exception as e:
             logger.error(f"AI practice error: {e}")
             await update.message.reply_text("❌ Sorry, I couldn't generate practice. Please try again!")
@@ -1266,7 +1278,10 @@ async def tips_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         response = ai_service.get_study_tips()
-        await update.message.reply_html(f"💡 <b>Study Tips</b>\n\n{response}")
+        # Escape HTML special characters in the response
+        from html import escape
+        safe_response = escape(response)
+        await update.message.reply_html(f"💡 <b>Study Tips from Maddy</b>\n\n{safe_response}")
     except Exception as e:
         logger.error(f"AI tips error: {e}")
         await update.message.reply_text("❌ Sorry, I couldn't get study tips. Please try again!")
